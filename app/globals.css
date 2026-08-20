@@ -1,26 +1,519 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Dark mode, script-free (DESIGN.md §2): the OS preference applies before
+   hydration via prefers-color-scheme; an explicit choice is stamped as
+   data-mode on <html> and always wins. */
+@custom-variant dark {
+  &:is([data-mode="dark"], [data-mode="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:is(:root:not([data-mode="light"]), :root:not([data-mode="light"]) *) {
+      @slot;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  /* ---- Colour roles (org-derived; values arrive as --l-… and --d-… vars) ---- */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-strong: var(--accent-strong);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--card);
+  --color-sidebar-foreground: var(--card-foreground);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-accent: var(--accent);
+  --color-sidebar-accent-foreground: var(--accent-foreground);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--ring);
+
+  /* ---- Semantic colours: fixed, never org-derived. DESIGN.md §2. ---- */
+  --color-profit: var(--profit);
+  --color-profit-soft: var(--profit-soft);
+  --color-profit-foreground: var(--profit-foreground);
+  --color-loss: var(--loss);
+  --color-loss-soft: var(--loss-soft);
+  --color-loss-foreground: var(--loss-foreground);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-foreground: var(--warn-foreground);
+  --color-danger: var(--loss);
+
+  /* ---- Typefaces. DESIGN.md §3. ---- */
+  --font-sans: var(--font-poppins);
+  --font-display: var(--font-fraunces);
+  --font-numeric: var(--font-inter);
+  --font-flourish: var(--font-ephesis);
+  --font-mono: initial;
+
+  /* ---- Type scale: fixed steps, no per-component sizes. ---- */
+  --text-display-lg: 2.375rem;
+  --text-display-lg--line-height: 2.75rem;
+  --text-display: 1.875rem;
+  --text-display--line-height: 2.25rem;
+  --text-display-sm: 1.5rem;
+  --text-display-sm--line-height: 1.875rem;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+  --text-body-lg: 1.0625rem;
+  --text-body-lg--line-height: 1.625rem;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.375rem;
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.125rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-numeric-xl: 1.75rem;
+  --text-numeric-xl--line-height: 2.125rem;
+  --text-numeric-lg: 1.25rem;
+  --text-numeric-lg--line-height: 1.75rem;
+
+  /* ---- Radius: three stops plus round. Nothing else, ever. ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 14px;
+  --radius-2xl: 14px;
+  --radius-3xl: 14px;
+  --radius-4xl: 14px;
+
+  /* ---- Elevation: resting is border-only; these are the two lifted levels. ---- */
+  --shadow-float: var(--elev-float);
+  --shadow-overlay: var(--elev-overlay);
+
+  /* ---- Motion. DESIGN.md §6 — emil tokens, verbatim. ---- */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in: initial; /* never ease-in — the utility does not exist here */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-drawer: 260ms;
+  /* ---- Bklit chart classes (text-chart-label, legend, …) → tokens.
+     The shadcn CLI injects a broken four-dash version of this block on
+     `@bklit/*` installs — if these lines ever reappear with `var(----…)`,
+     delete the duplicates and keep these. ---- */
+  --color-chart-background: var(--chart-background);
+  --color-chart-foreground: var(--chart-foreground);
+  --color-chart-foreground-muted: var(--chart-foreground-muted);
+  --color-chart-label: var(--chart-label);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-crosshair: var(--chart-crosshair);
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(--chart-tooltip-muted);
+  --color-chart-marker-background: var(--chart-marker-background);
+  --color-chart-marker-border: var(--chart-marker-border);
+  --color-chart-marker-foreground: var(--chart-marker-foreground);
+  --color-chart-scale-01: var(--chart-scale-01);
+  --color-chart-scale-02: var(--chart-scale-02);
+  --color-chart-scale-03: var(--chart-scale-03);
+  --color-chart-scale-04: var(--chart-scale-04);
+  --color-chart-scale-05: var(--chart-scale-05);
+  --color-chart-scale-pattern-color: var(--chart-scale-pattern-color);
+  --color-legend: var(--legend);
+  --color-legend-foreground: var(--legend-foreground);
+  --color-legend-muted: var(--legend-muted);
+  --color-legend-muted-foreground: var(--legend-muted-foreground);
+  --color-legend-track: var(--legend-track);
 }
+
+:root,
+.invoice-paper {
+  /* Role tokens resolve to the light set; [data-mode="dark"] flips them.
+     The --l-… and --d-… values are injected on <html> by the theme engine.
+     Fallbacks below mirror the default Sous palette (lib/theme/palette.ts).
+
+     .invoice-paper rides along so an invoice is ALWAYS ink on paper, whoever
+     opens it. The dark blocks below select :root only, and a subtree that
+     declares these properties on itself out-ranks anything it inherits — so
+     no <html> attribute is needed, which matters because /i/[token] shares
+     the root layout and cannot set one. A dark PDF is unreadable printed and
+     reads as broken in an email, and a document whose appearance depends on
+     the reader's phone gives the pixel-identity test no fixed target.
+     A selector list rather than a copy: one set of values, no drift. */
+  --background: var(--l-background, oklch(0.978 0.012 85));
+  --foreground: var(--l-foreground, oklch(0.185 0.012 85));
+  --card: var(--l-card, oklch(0.995 0.004 85));
+  --card-foreground: var(--l-card-foreground, oklch(0.185 0.012 85));
+  --popover: var(--l-popover, oklch(0.995 0.004 85));
+  --popover-foreground: var(--l-popover-foreground, oklch(0.185 0.012 85));
+  --primary: var(--l-primary, oklch(0.45 0.055 180));
+  --primary-foreground: var(--l-primary-foreground, oklch(0.995 0.004 85));
+  --primary-soft: var(--l-primary-soft, oklch(0.955 0.012 180));
+  --secondary: var(--l-secondary, oklch(0.955 0.012 85));
+  --secondary-foreground: var(--l-secondary-foreground, oklch(0.32 0.014 85));
+  --muted: var(--l-muted, oklch(0.955 0.01 85));
+  --muted-foreground: var(--l-muted-foreground, oklch(0.48 0.014 85));
+  --accent: var(--l-accent, oklch(0.94 0.02 60));
+  --accent-foreground: var(--l-accent-foreground, oklch(0.34 0.08 60));
+  --accent-strong: var(--l-accent-strong, oklch(0.62 0.12 60));
+  --border: var(--l-border, oklch(0.9 0.009 85));
+  --input: var(--l-input, oklch(0.9 0.009 85));
+  --ring: var(--l-ring, oklch(0.57 0.05 180));
+  --chart-1: var(--l-chart-1, oklch(0.45 0.055 180));
+  --chart-2: var(--l-chart-2, oklch(0.62 0.12 60));
+  --chart-3: var(--l-chart-3, oklch(0.5 0.05 180));
+  --chart-4: var(--l-chart-4, oklch(0.5 0.11 60));
+  --chart-5: var(--l-chart-5, oklch(0.86 0.036 180));
+
+  /* Semantic: fixed. A kitchen that picks red as its brand colour must not
+     have "you are losing money" rendered as brand chrome. */
+  --profit: oklch(0.55 0.15 150);
+  --profit-soft: oklch(0.96 0.04 150);
+  --profit-foreground: oklch(0.37 0.11 150);
+  --loss: oklch(0.55 0.21 27);
+  --loss-soft: oklch(0.96 0.025 27);
+  --loss-foreground: oklch(0.44 0.18 27);
+  --warn: oklch(0.68 0.14 75);
+  --warn-soft: oklch(0.965 0.045 85);
+  --warn-foreground: oklch(0.45 0.11 75);
+  --destructive: var(--loss);
+
+  /* Elevation: warm-tinted, never black. */
+  --elev-float:
+    0 1px 2px oklch(0.28 0.02 75 / 0.06), 0 4px 12px oklch(0.28 0.02 75 / 0.1);
+  --elev-overlay:
+    0 2px 6px oklch(0.28 0.02 75 / 0.08), 0 16px 40px oklch(0.28 0.02 75 / 0.16);
+
+  --radius: 14px;
+
+  /* ---- Bklit binding (DESIGN.md §5): charts read tokens, tokens read the
+     org. Every alias below points at a mode-flipping role token, so dark
+     mode and org repaints come free, with no per-chart config. ---- */
+  --chart-background: var(--card);
+  --chart-foreground: var(--foreground);
+  --chart-foreground-muted: var(--muted-foreground);
+  --chart-label: var(--muted-foreground);
+  --chart-line-primary: var(--primary);
+  --chart-line-secondary: var(--accent-strong);
+  --chart-crosshair: var(--muted-foreground);
+  --chart-grid: var(--border);
+  --chart-brush-border: var(--border);
+  --chart-tooltip-background: var(--popover);
+  --chart-tooltip-foreground: var(--popover-foreground);
+  --chart-tooltip-muted: var(--muted-foreground);
+  --chart-marker-background: var(--card);
+  --chart-marker-border: var(--border);
+  --chart-marker-foreground: var(--foreground);
+  --chart-indicator-color: var(--primary);
+  --chart-indicator-secondary-color: var(--accent-strong);
+  --chart-segment-background: var(--muted);
+  --legend: var(--card);
+  --legend-foreground: var(--foreground);
+  --legend-muted: var(--muted);
+  --legend-muted-foreground: var(--muted-foreground);
+  --legend-track: var(--border);
+
+  /* Sequential heat scale: the org's primary ramp (values injected by
+     lib/theme/derive.ts; fallbacks mirror the default palette). Semantic
+     heatmaps (stock pressure, waste) pass fixed amber/red levelColors
+     explicitly — intensity may be brand, danger never is. */
+  --chart-scale-01: var(--l-chart-scale-1, oklch(0.96 0.008 180));
+  --chart-scale-02: var(--l-chart-scale-2, oklch(0.86 0.036 180));
+  --chart-scale-03: var(--l-chart-scale-3, oklch(0.68 0.055 180));
+  --chart-scale-04: var(--l-chart-scale-4, oklch(0.5 0.051 180));
+  --chart-scale-05: var(--l-chart-scale-5, oklch(0.35 0.036 180));
+  --chart-scale-pattern-color: var(--muted);
+
+  /* Fixed semantic chart set — never derived from the org palette
+     (DESIGN.md §2 + §5). A red-brand kitchen's losses stay THIS red. */
+  --chart-profit: var(--profit);
+  --chart-loss: var(--loss);
+  --chart-warn: var(--warn);
+  --chart-danger: var(--loss);
+  --chart-target: color-mix(in oklch, var(--foreground) 60%, transparent);
+  --chart-projection: var(--muted-foreground);
+}
+
+:root[data-mode="dark"] {
+  --background: var(--d-background, oklch(0.155 0.008 85));
+  --foreground: var(--d-foreground, oklch(0.93 0.006 85));
+  --card: var(--d-card, oklch(0.205 0.008 85));
+  --card-foreground: var(--d-card-foreground, oklch(0.93 0.006 85));
+  --popover: var(--d-popover, oklch(0.225 0.008 85));
+  --popover-foreground: var(--d-popover-foreground, oklch(0.93 0.006 85));
+  --primary: var(--d-primary, oklch(0.72 0.055 180));
+  --primary-foreground: var(--d-primary-foreground, oklch(0.17 0.014 180));
+  --primary-soft: var(--d-primary-soft, oklch(0.26 0.02 180));
+  --secondary: var(--d-secondary, oklch(0.27 0.012 85));
+  --secondary-foreground: var(--d-secondary-foreground, oklch(0.85 0.008 85));
+  --muted: var(--d-muted, oklch(0.26 0.01 85));
+  --muted-foreground: var(--d-muted-foreground, oklch(0.7 0.01 85));
+  --accent: var(--d-accent, oklch(0.29 0.02 60));
+  --accent-foreground: var(--d-accent-foreground, oklch(0.86 0.06 60));
+  --accent-strong: var(--d-accent-strong, oklch(0.74 0.11 60));
+  --border: var(--d-border, oklch(0.29 0.01 85));
+  --input: var(--d-input, oklch(0.31 0.01 85));
+  --ring: var(--d-ring, oklch(0.6 0.04 180));
+  --chart-1: var(--d-chart-1, oklch(0.72 0.055 180));
+  --chart-2: var(--d-chart-2, oklch(0.74 0.11 60));
+  --chart-3: var(--d-chart-3, oklch(0.78 0.047 180));
+  --chart-4: var(--d-chart-4, oklch(0.78 0.1 60));
+  --chart-5: var(--d-chart-5, oklch(0.92 0.025 180));
+  --chart-scale-01: var(--d-chart-scale-1, oklch(0.28 0.018 180));
+  --chart-scale-02: var(--d-chart-scale-2, oklch(0.42 0.044 180));
+  --chart-scale-03: var(--d-chart-scale-3, oklch(0.58 0.055 180));
+  --chart-scale-04: var(--d-chart-scale-4, oklch(0.78 0.047 180));
+  --chart-scale-05: var(--d-chart-scale-5, oklch(0.92 0.025 180));
+
+  /* Semantic, dark-tuned. Still fixed, still never hers. */
+  --profit: oklch(0.72 0.17 150);
+  --profit-soft: oklch(0.28 0.05 150);
+  --profit-foreground: oklch(0.82 0.14 150);
+  --loss: oklch(0.68 0.19 25);
+  --loss-soft: oklch(0.28 0.06 25);
+  --loss-foreground: oklch(0.8 0.13 25);
+  --warn: oklch(0.78 0.14 80);
+  --warn-soft: oklch(0.29 0.05 80);
+  --warn-foreground: oklch(0.85 0.11 80);
+
+  /* Dark halves shadow opacity and leans on borders. */
+  --elev-float:
+    0 1px 2px oklch(0 0 0 / 0.12), 0 4px 12px oklch(0 0 0 / 0.14);
+  --elev-overlay:
+    0 2px 6px oklch(0 0 0 / 0.16), 0 16px 40px oklch(0 0 0 / 0.24);
+}
+
+/* System-dark before hydration — keep identical to the block above. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode="light"]) {
+    --background: var(--d-background, oklch(0.155 0.008 85));
+    --foreground: var(--d-foreground, oklch(0.93 0.006 85));
+    --card: var(--d-card, oklch(0.205 0.008 85));
+    --card-foreground: var(--d-card-foreground, oklch(0.93 0.006 85));
+    --popover: var(--d-popover, oklch(0.225 0.008 85));
+    --popover-foreground: var(--d-popover-foreground, oklch(0.93 0.006 85));
+    --primary: var(--d-primary, oklch(0.72 0.055 180));
+    --primary-foreground: var(--d-primary-foreground, oklch(0.17 0.014 180));
+    --primary-soft: var(--d-primary-soft, oklch(0.26 0.02 180));
+    --secondary: var(--d-secondary, oklch(0.27 0.012 85));
+    --secondary-foreground: var(--d-secondary-foreground, oklch(0.85 0.008 85));
+    --muted: var(--d-muted, oklch(0.26 0.01 85));
+    --muted-foreground: var(--d-muted-foreground, oklch(0.7 0.01 85));
+    --accent: var(--d-accent, oklch(0.29 0.02 60));
+    --accent-foreground: var(--d-accent-foreground, oklch(0.86 0.06 60));
+    --accent-strong: var(--d-accent-strong, oklch(0.74 0.11 60));
+    --border: var(--d-border, oklch(0.29 0.01 85));
+    --input: var(--d-input, oklch(0.31 0.01 85));
+    --ring: var(--d-ring, oklch(0.6 0.04 180));
+    --chart-1: var(--d-chart-1, oklch(0.72 0.055 180));
+    --chart-2: var(--d-chart-2, oklch(0.74 0.11 60));
+    --chart-3: var(--d-chart-3, oklch(0.78 0.047 180));
+    --chart-4: var(--d-chart-4, oklch(0.78 0.1 60));
+    --chart-5: var(--d-chart-5, oklch(0.92 0.025 180));
+    --chart-scale-01: var(--d-chart-scale-1, oklch(0.28 0.018 180));
+    --chart-scale-02: var(--d-chart-scale-2, oklch(0.42 0.044 180));
+    --chart-scale-03: var(--d-chart-scale-3, oklch(0.58 0.055 180));
+    --chart-scale-04: var(--d-chart-scale-4, oklch(0.78 0.047 180));
+    --chart-scale-05: var(--d-chart-scale-5, oklch(0.92 0.025 180));
+
+    /* Semantic, dark-tuned. Still fixed, still never hers. */
+    --profit: oklch(0.72 0.17 150);
+    --profit-soft: oklch(0.28 0.05 150);
+    --profit-foreground: oklch(0.82 0.14 150);
+    --loss: oklch(0.68 0.19 25);
+    --loss-soft: oklch(0.28 0.06 25);
+    --loss-foreground: oklch(0.8 0.13 25);
+    --warn: oklch(0.78 0.14 80);
+    --warn-soft: oklch(0.29 0.05 80);
+    --warn-foreground: oklch(0.85 0.11 80);
+
+    /* Dark halves shadow opacity and leans on borders. */
+    --elev-float:
+      0 1px 2px oklch(0 0 0 / 0.12), 0 4px 12px oklch(0 0 0 / 0.14);
+    --elev-overlay:
+      0 2px 6px oklch(0 0 0 / 0.16), 0 16px 40px oklch(0 0 0 / 0.24);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  /* Re-anchor the inherited colour, not just the variables.
+     `color` inherits as a COMPUTED value: body resolves var(--foreground)
+     once, and in dark mode that is near-white, so every descendant inherits
+     white regardless of what --foreground says further down the tree.
+     Redeclaring the variable on .invoice-paper fixes anything that names a
+     token explicitly (text-muted-foreground) and misses everything relying on
+     inheritance — which was most of the document, rendering near-white text
+     on white paper in the PDF. Setting color here re-resolves it inside the
+     subtree. */
+  .invoice-paper {
+    color: var(--foreground);
+    background-color: var(--background);
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground text-body;
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+}
+
+/* ---- Type styles: one utility per DESIGN.md step, family included. ---- */
+@utility type-display-lg {
+  font-family: var(--font-fraunces);
+  font-size: var(--text-display-lg);
+  line-height: var(--text-display-lg--line-height);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+@utility type-display {
+  font-family: var(--font-fraunces);
+  font-size: var(--text-display);
+  line-height: var(--text-display--line-height);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+@utility type-display-sm {
+  font-family: var(--font-fraunces);
+  font-size: var(--text-display-sm);
+  line-height: var(--text-display-sm--line-height);
+  font-weight: 500;
+  letter-spacing: -0.008em;
+}
+@utility type-title {
+  font-size: var(--text-title);
+  line-height: var(--text-title--line-height);
+  font-weight: 600;
+}
+@utility type-body-lg {
+  font-size: var(--text-body-lg);
+  line-height: var(--text-body-lg--line-height);
+  font-weight: 400;
+}
+@utility type-body {
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  font-weight: 400;
+}
+@utility type-label {
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  font-weight: 500;
+}
+@utility type-caption {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 400;
+}
+@utility type-flourish {
+  font-family: var(--font-ephesis);
+  font-weight: 400;
+  /* ≥28px always — hairlines must survive. Never numbers, never labels. */
+  font-size: max(1.75rem, 1em);
+  line-height: 1.3;
+}
+
+/* ---- The numeric utility. Every rendered number wears this. ---- */
+@utility numeric {
+  font-family: var(--font-inter);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+@utility numeric-xl {
+  font-family: var(--font-inter);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--text-numeric-xl);
+  line-height: var(--text-numeric-xl--line-height);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+@utility numeric-lg {
+  font-family: var(--font-inter);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--text-numeric-lg);
+  line-height: var(--text-numeric-lg--line-height);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+@utility numeric-body {
+  font-family: var(--font-inter);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+@utility numeric-sm {
+  font-family: var(--font-inter);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* ---- Drawer motion: vaul ships 500ms; the ceiling is 300ms (DESIGN.md §6).
+   Easing already matches --ease-drawer; only the duration needs correcting. ---- */
+[data-vaul-drawer],
+[data-vaul-overlay] {
+  transition-duration: var(--duration-drawer) !important;
+  animation-duration: var(--duration-drawer) !important;
+}
+
+/* ---- Reduced motion: movement goes, feedback stays. ----
+   Transforms and entrance animations collapse; colour and opacity changes on
+   interactive elements keep a gentle 80ms so state changes remain visible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  [role="switch"],
+  [role="checkbox"] {
+    transition-property: color, background-color, border-color, opacity !important;
+    transition-duration: 80ms !important;
+  }
+}
+
+/* The `@bklit/chart-context` install appends a `.dark { --chart-… }` block
+   here. Sous themes charts through the token aliases above (dark mode via
+   data-mode, not a .dark class), so that block is removed on sight — it
+   would grayscale the org's series colours. */
+
